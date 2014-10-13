@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<link rel="stylesheet" href="./ext/bootstrap/css/bootstrap.min.css">
+	<script src="./ext/jquery.js"></script>
+	<script src="./ext/bootstrap/js/bootstrap.min.js"></script>
+	<script>
+		var BASE_WEBCAL_URL = "webcal://haikudog.com/ical/";
+		var leagues = {};
+		var league_names = ["siahl", "jshl"];
+
+		function clean_id(s){
+			return s.replace(/\s+/g, '_');
+		}
+
+		function panel_body_selector(selector_id){
+			return "#" + selector_id + " > .panel-body";
+		}
+
+		function new_collapse_panel(parent_id, collapse_id, collapse_label){
+			var lines = [ 
+				'<div class="panel panel-default">',
+			    '  <div class="panel-heading">',
+			    '    <h4 class="panel-title">',
+        		'      <a data-toggle="collapse" data-parent="#' + parent_id + '" href="#' + 
+        					collapse_id + '">' + collapse_label + '</a>',
+      			'    </h4>',
+    			'  </div>',
+    			'  <div id="' + collapse_id + '" class="panel-collapse collapse">',
+    			'    <div class="panel-body"></div>',
+    			'  </div>',
+    			'</div>'
+    		];
+    		return lines.join("\n");
+		}
+
+		function get_team_line(team, team_obj){
+			var lines = [
+				'<p>',
+				'  <a href="' + BASE_WEBCAL_URL + team_obj["filename"] + '">' + team + '</a>',
+				'  <span class="last_updated">' + team_obj["mtime"] + '</span>',
+				'</p>',
+			];
+			return lines.join("\n");
+		}
+
+		function refresh_league(league){
+			league_id = clean_id("league_" + league);
+
+			// Create the collapse panel if we haven't done it already
+			if ($("#" + league_id).length == 0){
+				console.log("Building collapse for " + league);
+				$("#leagues").append(new_collapse_panel("leagues", league_id, league.toUpperCase()));
+			}
+
+			console.log("Loading available data for " + league);
+
+			// Clear out the contents of the league first
+			$(panel_body_selector(league_id)).empty();
+
+			// Add in the league data
+			for (var level in leagues[league]){
+				console.log("Found level " + level + " in " + league);
+				// Add a collapse block for each level
+				var level_id = clean_id(league_id + "_" + level);
+				$(panel_body_selector(league_id)).append(new_collapse_panel(league_id, level_id, level));
+				for (var team in leagues[league][level]){
+					var team_obj = leagues[league][level][team];
+					console.log("Found team " + team + " in " + level);
+					$(panel_body_selector(level_id)).append(get_team_line(team, team_obj));
+				}
+			}
+		}
+
+		function fetch_league_file(league, url){
+			$.ajax({
+			  dataType: "json",
+			  url: url,
+			  success: function(data) {
+			  	console.log("fetched data for " + league);
+			  	leagues[league] = data;
+			  	refresh_league(league);
+			  }
+			});
+		}
+
+		function load_league_data(){
+			for (var i=0; i<league_names.length; i++){
+				var league = league_names[i];
+				var url = league + ".txt";
+				console.log("trying to fetch " + url);
+				fetch_league_file(league, url);
+			}
+		}
+
+
+		function change_nav(nav_target){
+			// Turn off all nav active classes
+			$("#sitenav > li").removeClass('active');
+			// Hide all content
+			$("#sitenav > li > a").each(function(i){ $($(this).attr('href')).hide(); });
+			// Turn target nav item active
+			$("#sitenav > li:has(a[href=" + nav_target + "])").addClass('active');
+			// Show target content
+			$(nav_target).show(); 
+		}
+
+		$(document).ready(function(){
+			// register click handling for nav elements
+			$("#sitenav > li > a").click(function() { change_nav($(this).attr('href')) });
+
+			// Set default content
+			change_nav('#ical_links');
+
+			// Load up the initial league blocks
+			for (var i=0; i<league_names.length; i++){
+				refresh_league(league_names[i]);
+			}
+			// Load up the league data files
+			load_league_data();
+		})
+
+	</script>
+	<style>
+		.last_updated { float: right; color: lightgray; }
+	</style>
+</head>
+<body>
+
+<nav class="navbar navbar-default" role="navigation">
+	<div class="container-fluid">
+		<div class="navbar-header">
+			<a class="navbar-brand" href="#">icecal</a>
+		</div>
+
+		<div class="collapse navbar-collapse">
+			<ul class="nav navbar-nav" id="sitenav">
+				<li><a href="#ical_links">iCal links</a></li>
+				<li><a href="#about">About</a></li>
+			</ul>
+		</div>
+	</div>
+</nav>
+
+<div id="ical_links" style="display:none">
+	<div class="container">
+		<div class="panel-group" id="leagues"></div>
+	</div>
+</div>
+
+<div id="about" style="display:none">
+	<div class="container">
+		<h3>What is this??</h3>
+		<p>
+			Sharks Ice has a super sweet website with schedules on it. It looks like it was
+			built in 1989. One nice thing is that the team schedule pages each have iCal links
+			so you can load it into your calendar program. The problem is that you can't subscribe 
+			to this calendar, so new games aren't loaded automatically into your calendar. 
+		</p>	
+		<p>
+			This site was built to load those calendar updates and provide the iCal data in a way 
+			that allows you to subscribe to a calendar and get updates.
+		</p>
+
+		<h3>Okay, cool. What do I do?</h3>
+		<p>
+			Navigate though to the team you care about and click on the link. Your calendar
+			app should open up and do the right thing.
+		</p>
+
+		<h3>Can I trust this thing?</h3>
+		<p>
+			For the most part, yeah. The iCal data is loaded and updated daily and should be consistent. 
+			I've been using it for years now without many problems.
+		</p>
+		<p>
+			Here are the things worth calling out:
+			<ul>
+				<li> Sharks Ice one time updated the schedule without updating the iCal file. 
+					Very rare, but it has happened.</li>
+				<li> Data might not be up to date between seasons. I have to trigger something to re-parse
+					the team data which picks up Division name changes, team name changes, teams changing 
+					their level, new teams, etc, etc.</li>
+				<li> If Sharks Ice changes their site format, this site will likely break. But, as you
+					probably know, Sharks Ice doesn't update anything unless they have to.</li>
+			</ul>
+		</p>
+
+		<h3>Where's the Over-35 league?</h3>
+		<p>
+			The Over-35 league has a different format to their web schedules and it doesn't provide
+			iCal data. I'd like to add this at a later time, but I currently don't support this.
+		</p>
+		<h3>Is this site affiliated at all with Sharks Ice?</h3>
+		<p>
+			Nope.
+		</p>
+
+		<h3>Who do I contact with questions, comments, or complaints?</h3>
+		<p>
+			You can reach me at icecal@haikudog.com. I don't promise great support or fascinating
+			conversation, but you can give it a shot.
+		</p>
+	</div>
+</div>
+
+</body>
+</html>
