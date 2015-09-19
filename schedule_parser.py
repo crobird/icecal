@@ -74,9 +74,13 @@ class League(object):
         bs = BeautifulSoup(self.html)
         filter_tags = bs.findAll(levels_and_teams)
         levels = {}
+        level = None
         for tag in filter_tags:
             # Order here is important since JSHL levels also have hrefs, but we want to match on name
             # {"CC":{"Blueline":{"mtime":"","url":"team=534&season=30&tlev=0&tseq=0&league=1"},
+            if tag.text.strip().lower() == self.name.lower():
+                # If the league name is a link, skip it
+                continue
             if "name" in tag.attrs:
                 level = self.fix_level(tag.text)
                 if level in levels:
