@@ -39,7 +39,7 @@ def publish_ical_file(team_data, ical_data):
         calendar = caldav.Calendar(client, CALDAV_URL).save()
         event = caldav.Event(client, url="{}{}".format(CALDAV_URL, team_data["filename"]), data=ical_data, parent=calendar).save()
     except Exception, e:
-        raise Exception("Trouble publishing ics file: {}".format(e))
+        raise Exception("Trouble publishing ics file '{}': {}".format(team_data["filename"], e))
 
 def process_league(league, save_dir=None, publish=False, limit=None):
     count = 0
@@ -84,3 +84,13 @@ if __name__ == '__main__':
     league = json.loads(json_data)
 
     process_league(league, save_dir=args.save_dir, publish=args.publish, limit=args.limit)
+
+    # Save league data back out, to include modified times
+    try:
+        out_json = json.dumps(league, sort_keys=True, indent=4, separators=(',', ': '))
+    except Exception, e:
+        raise Exception("Unable to dump out league json")
+    else:
+        outfile = open(args.json, "w")
+        outfile.write(out_json)
+        outfile.close()
