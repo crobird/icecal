@@ -18,11 +18,10 @@ from bs4 import BeautifulSoup
 #   <a href="display-schedule.php?team=1463&amp;season=30&amp;tlev=0&amp;tseq=0&amp;league=2">Ranger Blue </a>
 
 def levels_and_teams(tag):
-    if tag.name == "a":
-        if "name" in tag.attrs:
-            return True
-        elif "href" in tag.attrs and re.match("display-schedule.php", tag.attrs["href"]):
-            return True
+    if tag.name == 'th' and tag.attrs.get('colspan') == '100' and tag.text.startswith('Adult Division'):
+        return True
+    if tag.name == "a" and tag.attrs.get("href") and re.match("display-schedule(.php)?", tag.attrs["href"]):
+        return True
 
 def clean_id(bits):
     new_id = ".".join(bits)
@@ -66,13 +65,13 @@ class League(object):
         return str(team_string).rstrip()
 
     def fix_team_link(self, href):
-        return re.sub(r'^display-schedule\.php\?', '', href)
+        return re.sub(r'^display-schedule(\.php)?\?', '', href)
 
     def parse(self, relcal_map=None):
         if self.html is None:
             return
-        bs = BeautifulSoup(self.html)
-        filter_tags = bs.findAll(levels_and_teams)
+        bs = BeautifulSoup(self.html, "html.parser")
+        filter_tags = bs.find_all(levels_and_teams)
         levels = {}
         level = None
         for tag in filter_tags:
@@ -81,7 +80,7 @@ class League(object):
             if tag.text.strip().lower() == self.name.lower():
                 # If the league name is a link, skip it
                 continue
-            if "name" in tag.attrs:
+            if tag.name == 'th' and tag.text.startswith('Adult Division'):
                 level = self.fix_level(tag.text)
                 if level in levels:
                     raise Exception("Level is defined twice, we got parser troubles, friend")
@@ -102,9 +101,9 @@ class League(object):
 
 
 LEAGUES = [
-    League("siahl", "http://stats.liahl.org/display-stats.php?league=1", level_transform=[r"^Senior ", ""]),
-    League('jshl', "http://stats.liahl.org/display-stats.php?league=2"),
-    League("over35", "http://stats.liahl.org/display-schedule.php?league=4"),
+    League("siahl", "https://stats.sharksice.timetoscore.com/display-stats.php?league=1", level_transform=[r"^Adult Division ", ""]),
+    League('jshl', "https://stats.sharksice.timetoscore.com/display-stats.php?league=2"),
+    League("over35", "https://stats.sharksice.timetoscore.com/display-stats.php?league=4"),
 ]
 
 LEAGUE_LOOKUP = { l.name: l for l in LEAGUES }

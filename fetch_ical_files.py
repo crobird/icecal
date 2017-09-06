@@ -8,7 +8,9 @@ import caldav
 import local_settings
 from datetime import datetime
 
-ICAL_URL_TEMPLATE = "http://stats.liahl.org/team-cal.php?{}&format=iCal"
+# Sample iCal link
+# https://stats.sharksice.timetoscore.com/team-cal.php?team=323&tlev=0&tseq=0&season=40&format=iCal
+ICAL_URL_TEMPLATE = "https://stats.sharksice.timetoscore.com/team-cal.php?{}&format=iCal"
 CALDAV_URL = "http://{}:{}@{}/ical/".format(local_settings.user, local_settings.password, local_settings.hostname)
 
 def fetch_ical_file(team_data, skip_mods=False):
@@ -34,6 +36,8 @@ def fetch_ical_file(team_data, skip_mods=False):
     return ical_data
 
 def publish_ical_file(team_data, ical_data):
+    if not ical_data:
+        return
     try:
         client = caldav.DAVClient(CALDAV_URL)
         calendar = caldav.Calendar(client, CALDAV_URL).save()
