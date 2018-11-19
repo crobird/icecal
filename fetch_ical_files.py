@@ -13,6 +13,40 @@ from datetime import datetime
 ICAL_URL_TEMPLATE = "https://stats.sharksice.timetoscore.com/team-cal.php?{}&format=iCal"
 CALDAV_URL = "http://{}:{}@{}/ical/".format(local_settings.user, local_settings.password, local_settings.hostname)
 
+def is_valid_ical_event(event_lines):
+    for l in event_lines:
+        # Skip any event that's missing a start time
+        if re.match(r'DTSTART:\s*$', l):
+            return False
+    return True
+
+def cleanup_ical_data(ical_data, relcalid):
+    # Save lines per event and only promote events when we know it's valid
+    new_ical_lines = []
+    event_lines = []
+    in_event = False
+    for line in ical_data.split("\n"):
+        if re.match(r'^(LAST-MODIFIED|DTSTAMP):', line):
+            # Have to work around some wonky issues with caldav rejecting these lines
+            continue
+        elif re.match(r'X-WR-RELCALID:', line):
+            # Sharks Ice was using the same relcalid, so we replace it with our unique one
+            line = re.sub(r'X-WR-RELCALID:\s*([\d\w\-]+)', 'X-WR-RELCALID: {}'.format(relcalid), line)
+        elif line.startswith('END:VEVENT'):
+            event_lines.append(line)
+            if is_valid_ical_event(event_lines):
+                new_ical_lines.extend(event_lines)
+            event_lines = []
+            in_event = False
+            continue # Skip adding the current line anywhere, since we just took care of it
+        elif line.startswith('BEGIN:VEVENT'):
+            in_event = True
+        if in_event:
+            event_lines.append(line)
+        else:
+            new_ical_lines.append(line)
+    return "\n".join(new_ical_lines)
+
 def fetch_ical_file(team_data, skip_mods=False):
     url = ICAL_URL_TEMPLATE.format(team_data["url"])
     try:
@@ -21,18 +55,7 @@ def fetch_ical_file(team_data, skip_mods=False):
     except Exception, e:
         raise Exception("Trouble fetching {}: {}".format(url, e))
     if not skip_mods:
-        new_ical_lines = []
-        for line in ical_data.split("\n"):
-            if re.match(r'^(LAST-MODIFIED|DTSTAMP):', line):
-                # Have to work around some wonky issues with caldav rejecting these lines
-                continue
-            elif re.match(r'X-WR-RELCALID:', line):
-                # Sharks Ice was using the same relcalid, so we replace it with our unique one
-                line = re.sub(r'X-WR-RELCALID:\s*([\d\w\-]+)', 
-                'X-WR-RELCALID: {}'.format(team_data["relcalid"]),
-                line)
-            new_ical_lines.append(line)
-        ical_data = "\n".join(new_ical_lines)
+        ical_data = clean_up_ical_data(ical_data, team_data["relcalid"])
     return ical_data
 
 def publish_ical_file(team_data, ical_data):
