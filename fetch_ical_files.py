@@ -55,7 +55,7 @@ def fetch_ical_file(team_data, skip_mods=False):
     except Exception, e:
         raise Exception("Trouble fetching {}: {}".format(url, e))
     if not skip_mods:
-        ical_data = clean_up_ical_data(ical_data, team_data["relcalid"])
+        ical_data = cleanup_ical_data(ical_data, team_data["relcalid"])
     return ical_data
 
 def publish_ical_file(team_data, ical_data):
